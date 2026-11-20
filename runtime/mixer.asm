@@ -1,0 +1,110 @@
+; Optional music overlay for the compact player. Preserves IX/IY.
+AYFX_MIX:
+	LD	A,H
+	OR	L
+	JR	Z,.silent
+	LD	DE,AYFX_OUTPUT
+	LD	BC,000Eh
+	LDIR
+	JR	.overlay
+
+.silent:
+	LD	HL,AYFX_OUTPUT
+	LD	DE,AYFX_OUTPUT + 0001h
+	LD	BC,000Dh
+	LD	(HL),00h
+	LDIR
+	LD	A,3Fh
+	LD	(AYFX_OUTPUT + 07h),A
+	LD	A,FFh
+	LD	(AYFX_OUTPUT + 0Dh),A
+
+.overlay:
+	LD	A,(AYFX_ACTIVE)
+	OR	A
+	RET	Z
+
+	PUSH	IX
+	PUSH	IY
+	LD	IX,AYFX_REGS + 08h
+	LD	IY,AYFX_OUTPUT + 08h
+	LD	HL,AYFX_REGS
+	LD	DE,AYFX_OUTPUT
+	LD	A,(AYFX_MASK)
+	LD	C,A
+	LD	B,03h
+
+.channel:
+	SRL	C
+	JR	NC,.music_channel
+	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,(HL)
+	LD	(DE),A
+	DEC	HL
+	DEC	DE
+	LD	A,(IX+AYFX_REG_VALUE)
+	LD	(IY+AYFX_REG_VALUE),A
+	JR	.next
+
+.music_channel:
+	LD	A,(AYFX_MASK)
+	BIT	04h,A
+	JR	Z,.next
+	BIT	04h,(IY+AYFX_REG_VALUE)
+	JR	Z,.next
+	LD	(IY+AYFX_REG_VALUE),00h
+
+.next:
+	INC	HL
+	INC	HL
+	INC	DE
+	INC	DE
+	INC	IX
+	INC	IY
+	DJNZ	.channel
+	POP	IY
+	POP	IX
+
+	LD	A,(AYFX_MASK)
+	AND	07h
+	LD	C,A
+	RLCA
+	RLCA
+	RLCA
+	OR	C
+	LD	C,A
+	LD	HL,AYFX_OUTPUT + 07h
+	LD	A,(AYFX_REGS + 07h)
+	XOR	(HL)
+	AND	C
+	XOR	(HL)
+	LD	(HL),A
+
+	LD	A,(AYFX_MASK)
+	BIT	03h,A
+	JR	Z,.envelope
+	AND	07h
+	XOR	07h
+	RLCA
+	RLCA
+	RLCA
+	LD	B,A
+	LD	A,(AYFX_OUTPUT + 07h)
+	OR	B
+	LD	(AYFX_OUTPUT + 07h),A
+	LD	A,(AYFX_REGS + 06h)
+	LD	(AYFX_OUTPUT + 06h),A
+
+.envelope:
+	LD	A,(AYFX_MASK)
+	BIT	04h,A
+	RET	Z
+	LD	HL,(AYFX_REGS + 0Bh)
+	LD	(AYFX_OUTPUT + 0Bh),HL
+	LD	A,(AYFX_REGS + 0Dh)
+	LD	(AYFX_OUTPUT + 0Dh),A
+
+	RET

@@ -1,39 +1,9 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
+/native/build/
+/native/dist/
+/release/
+__pycache__/
+*.pyc
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-/src/Win32/Debug
-/src/lh5/__history
-/src/__history
-/src/__astcache
-/src/*.local
-/src/*.stat
-/zeusexample/ZeusBak
+*.pdb
+*.ilk
+*.log
