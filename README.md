@@ -8,6 +8,28 @@ Native Windows AY sound-effect editor for **MSX and ZX Spectrum**, maintained by
 
 The release includes the executable, documentation, credits and SHA-256 checksums. Source is available here and as a matching release ZIP. Press **F1** for the built-in guide.
 
+## Screenshots
+
+Captured from the Windows build using synthetic demo effects and audio. Click an image to view it at full size.
+
+### Editor and effect library
+
+Browse effects, edit tone/noise/volume values, draw parameter bars, and audition sounds with the selected chip clock and frame rate.
+
+![AYFXEDIT NEXT GEN editor showing the effect library, single-channel grid, parameter bars and playback controls](docs/images/editor.png)
+
+### Multichannel editing
+
+Edit three synchronized AY channels side by side, with independent sound/remove controls and visible loop markers.
+
+![Three-channel AY effect with A, B and C lanes, per-channel controls and purple loop markers](docs/images/multichannel-editing.png)
+
+### WAV / MP3 workshop
+
+Trim and inspect source audio, view its spectrogram, adjust conversion settings, and compare the original with the AY result before applying it.
+
+![WAV and MP3 workshop showing the spectrogram, selection range, channel count, conversion controls and Original/AY result preview buttons](docs/images/wav-mp3-workshop.png)
+
 ## What NEXT GEN improves
 
 | Area | Additions and changes |
