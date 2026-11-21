@@ -87,13 +87,24 @@ public:
         connect(&decoder,&QAudioDecoder::bufferReady,this,[this]{
             try {
                 auto b=decoder.read();auto fmt=b.format();
-                ayfx::require(b.isValid()&&fmt.sampleFormat()==QAudioFormat::Int16,"Unsupported decoded audio format");
-                if(!wave.rate){wave.rate=fmt.sampleRate();wave.channels=fmt.channelCount();wave.bits=16;}
+                ayfx::require(b.isValid()&&fmt.sampleFormat()!=QAudioFormat::Unknown,"Unsupported decoded audio format");
+                if(!wave.rate){wave.rate=fmt.sampleRate();wave.channels=fmt.channelCount();wave.bits=fmt.bytesPerSample()*8;}
                 ayfx::require(wave.rate==fmt.sampleRate()&&wave.channels==fmt.channelCount()&&wave.channels>=1&&wave.channels<=2,"Audio format changed or has more than two channels");
                 ayfx::require(wave.rate>=4000&&wave.rate<=192000,"Unsupported audio sample rate");
                 ayfx::require(wave.mono.size()+b.frameCount()<=size_t(wave.rate)*300,"Audio exceeds five minutes");
-                auto samples=b.constData<qint16>();
-                for(int f=0;f<b.frameCount();f++){double sum=0;for(int c=0;c<wave.channels;c++)sum+=samples[f*wave.channels+c]/32768.;wave.mono.push_back(float(sum/wave.channels));}
+                for(int f=0;f<b.frameCount();f++){
+                    double sum=0;for(int c=0;c<wave.channels;c++){
+                        int i=f*wave.channels+c;double sample=0;
+                        switch(fmt.sampleFormat()){
+                            case QAudioFormat::Int16:sample=b.constData<qint16>()[i]/32768.;break;
+                            case QAudioFormat::Int32:sample=b.constData<qint32>()[i]/2147483648.;break;
+                            case QAudioFormat::UInt8:sample=(int(b.constData<quint8>()[i])-128)/128.;break;
+                            case QAudioFormat::Float:sample=b.constData<float>()[i];break;
+                            default:throw std::runtime_error("Unsupported decoded audio format");
+                        }
+                        ayfx::require(std::isfinite(sample),"Audio contains invalid samples");sum+=sample;
+                    }wave.mono.push_back(float(std::clamp(sum/wave.channels,-1.,1.)));
+                }
             }catch(const std::exception& e){finish(QString::fromUtf8(e.what()));}
         });
         connect(&decoder,&QAudioDecoder::finished,this,[this]{finish();});

@@ -11,7 +11,8 @@ Ubuntu 24.04:
 
 macOS:
     brew install cmake qtbase qtmultimedia
-    export CMAKE_PREFIX_PATH="$(brew --prefix qtbase):$(brew --prefix qtmultimedia)"
+    export CMAKE_PREFIX_PATH="$(brew --prefix)"
+    export QT_ADDITIONAL_PACKAGES_PREFIX_PATH="$(brew --prefix)"
 
 All platforms:
     cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release

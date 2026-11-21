@@ -4,10 +4,11 @@ set -euo pipefail
 app="$1"
 base=$(brew --prefix qtbase)
 media=$(brew --prefix qtmultimedia)
+plugins=$("$base/bin/qmake" -query QT_INSTALL_PLUGINS)
 mkdir -p "$app/Contents/PlugIns/platforms" "$app/Contents/PlugIns/multimedia" "$app/Contents/Resources/licenses"
-cp "$base/plugins/platforms/libqcocoa.dylib" "$base/plugins/platforms/libqoffscreen.dylib" "$app/Contents/PlugIns/platforms/"
-cp "$media"/plugins/multimedia/*.dylib "$app/Contents/PlugIns/multimedia/"
-args=(-no-plugins -always-overwrite "-libpath=$base/lib" "-libpath=$media/lib")
+cp "$plugins/platforms/libqcocoa.dylib" "$plugins/platforms/libqoffscreen.dylib" "$app/Contents/PlugIns/platforms/"
+cp "$plugins"/multimedia/*.dylib "$app/Contents/PlugIns/multimedia/"
+args=(-no-plugins -always-overwrite "-libpath=$base/lib" "-libpath=$media/lib" "-libpath=$(brew --prefix)/lib")
 while IFS= read -r plugin; do args+=("-executable=$plugin"); done < <(find "$app/Contents/PlugIns" -name '*.dylib')
 "$base/bin/macdeployqt" "$app" "${args[@]}"
 printf '[Paths]\nPlugins = PlugIns\n' > "$app/Contents/Resources/qt.conf"
