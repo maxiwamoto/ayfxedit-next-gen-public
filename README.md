@@ -97,3 +97,9 @@ The public default branch contains the current maintained implementation. Legacy
 **Original project:** Shiru. **Improved fork:** Threetwosevensixseven. **NEXT GEN interface and additions:** Max Iwamoto, 2026.
 
 Please retain [CREDITS.md](CREDITS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The upstream snapshot has no project-wide licence file; this publication does not invent or replace the original authors' permissions. Public source availability should not be read as a new blanket licence.
+
+## Native Linux and macOS preview
+
+A Qt-based native editor is being tested on Linux x86-64 and macOS Intel / Apple Silicon. It reuses the Windows version's AY renderer, formats, converters and exporters. The native interface is a preview with some interface differences; Windows v1.0.0 remains the stable release.
+
+See [native build instructions and preview scope](docs/NATIVE_PORT.md). The `Native desktop builds` workflow produces Linux DEB/TGZ packages and macOS application bundles, with shared engine, editing, file compatibility and MP3 decoder checks. Mac previews are ad-hoc signed, not notarized. Desktop/audio testing on users' machines is still needed before a stable native release.

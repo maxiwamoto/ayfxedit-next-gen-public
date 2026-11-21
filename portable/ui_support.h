@@ -110,6 +110,6 @@ public:
         connect(&decoder,&QAudioDecoder::finished,this,[this]{finish();});
         connect(&decoder,QOverload<QAudioDecoder::Error>::of(&QAudioDecoder::error),this,[this](QAudioDecoder::Error){finish(decoder.errorString());});
         timeout.setSingleShot(true);connect(&timeout,&QTimer::timeout,this,[this]{finish("Audio decoding timed out.");});
-        decoder.setSource(QUrl::fromLocalFile(QFileInfo(path).absoluteFilePath()));timeout.start(120000);decoder.start();
+        QTimer::singleShot(0,this,[this,path]{timeout.start(120000);decoder.setSource(QUrl::fromLocalFile(QFileInfo(path).absoluteFilePath()));if(!complete)decoder.start();});
     }
 };

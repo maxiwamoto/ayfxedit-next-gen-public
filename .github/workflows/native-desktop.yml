@@ -42,6 +42,7 @@ jobs:
           ulimit -s 32768
           ctest --test-dir build-portable --output-on-failure
       - name: Native MP3 decoder checks
+        timeout-minutes: 5
         shell: bash
         run: |
           ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=0.5" -codec:a libmp3lame build-portable/test-tone.mp3
@@ -56,6 +57,7 @@ jobs:
           cd build-portable
           cpack
       - name: Package macOS
+        timeout-minutes: 10
         if: runner.os == 'macOS'
         run: |
           bash tools/package_macos.sh build-portable/ayfxedit-next-gen.app

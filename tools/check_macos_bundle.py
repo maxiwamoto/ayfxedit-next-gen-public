@@ -12,9 +12,13 @@ for path in app.rglob('*'):
     if 'Mach-O' not in kind:
         continue
     count += 1
+    # LC_ID_DYLIB identifies this binary; it is not a dependency to load.
+    identities = subprocess.check_output(['otool', '-D', str(path)], text=True).splitlines()[1:]
     lines = subprocess.check_output(['otool', '-L', str(path)], text=True).splitlines()[1:]
     for line in lines:
         dep = line.strip().split(' (compatibility')[0]
+        if dep in identities:
+            continue
         if dep.startswith('/') and not dep.startswith(('/System/Library/', '/usr/lib/')):
             errors.append(f'{path}: external dependency {dep}')
 if errors:
