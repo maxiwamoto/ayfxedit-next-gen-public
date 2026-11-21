@@ -1,6 +1,4 @@
 #include "workshop_dialog.h"
-#include <QJsonDocument>
-#include <QJsonObject>
 class WaveGraph : public QWidget {
 public:
     const ayfx::SourceWave* wave=nullptr;
@@ -64,7 +62,7 @@ WorkshopDialog::WorkshopDialog(int hz,int fps,QWidget* parent,const ayfx::Effect
         catch(const std::exception& e){status->setText(QString::fromUtf8(e.what()));}catch(...){status->setText("Conversion failed or was cancelled.");}
     });
     apply->setEnabled(false);resultButton->setEnabled(false);original->setEnabled(false);
-    if(saved&&!saved->sourceAudio.empty()){setSource(ayfx::decodeSourceWave(saved->sourceAudio),textString(saved->sourcePath));auto doc=QJsonDocument::fromJson(QByteArray::fromStdString(saved->recipe));auto o=doc.object();channels->setValue(o.value("channels").toInt(2));attack->setValue(o.value("attack").toDouble());decay->setValue(o.value("decay").toDouble());brightness->setValue(o.value("brightness").toDouble());pitch->setValue(o.value("pitch").toDouble());tone->setValue(o.value("tone").toDouble(50));noise->setValue(o.value("noise").toDouble(50));normalize->setChecked(o.value("normalize").toBool(true));}
+    if(saved&&!saved->sourceAudio.empty()){setSource(ayfx::decodeSourceWave(saved->sourceAudio),textString(saved->sourcePath));ayfx::ConvertOptions o;std::istringstream recipe(saved->recipe);if(recipe>>o.channels>>o.attackMs>>o.decayMs>>o.brightness>>o.pitch>>o.normalize>>o.toneSensitivity>>o.noiseSensitivity){channels->setValue(o.channels);attack->setValue(o.attackMs);decay->setValue(o.decayMs);brightness->setValue(o.brightness);pitch->setValue(o.pitch);tone->setValue(o.toneSensitivity);noise->setValue(o.noiseSensitivity);normalize->setChecked(o.normalize);}}
 }
 void WorkshopDialog::setSource(ayfx::SourceWave wave,const QString& path) {
     playback.stop();previewOffset=0;valid=false;apply->setEnabled(false);resultButton->setEnabled(false);source=std::move(wave);sourceName=path;startTime->setValue(0);endTime->setValue(std::min(source.duration(),double(ayfx::MaxFrames)/rate));auto plot=static_cast<WaveGraph*>(graph);plot->wave=&source;plot->viewStart=0;plot->viewEnd=source.duration();plot->start=0;plot->end=endTime->value();plot->updateSpectrum();original->setEnabled(true);status->setText(QString("%1 — %2 seconds").arg(QFileInfo(path).fileName()).arg(source.duration(),0,'f',3));
@@ -84,7 +82,7 @@ void WorkshopDialog::runConversion() {
     }catch(const std::exception& e){showError(this,e);}
 }
 std::string WorkshopDialog::recipe() const {
-    return QJsonDocument(QJsonObject{{"channels",settings.channels},{"attack",settings.attackMs},{"decay",settings.decayMs},{"brightness",settings.brightness},{"pitch",settings.pitch},{"tone",settings.toneSensitivity},{"noise",settings.noiseSensitivity},{"normalize",settings.normalize}}).toJson(QJsonDocument::Compact).toStdString();
+    std::ostringstream out;out<<channels->value()<<' '<<attack->value()<<' '<<decay->value()<<' '<<brightness->value()<<' '<<pitch->value()<<' '<<normalize->isChecked()<<' '<<tone->value()<<' '<<noise->value();return out.str();
 }
 void WorkshopDialog::reject(){if(busy){*cancelled=true;status->setText("Cancelling…");return;}playback.stop();QDialog::reject();}
 WorkshopDialog::~WorkshopDialog(){*cancelled=true;watcher.waitForFinished();}

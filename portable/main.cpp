@@ -319,8 +319,8 @@ public:
         auto before=doc.bank[0].cells[4].tone;grid->setCurrentIndex(model->index(4,2));grid->clearSelection();editRows(true);require(group().loopStart==5&&group().loopEnd==21,"Linked insert lost loop timing");require(doc.bank[0].cells[5].tone==before,"Linked insert lost frame");history(false);
         auto pcm=renderChannels({&doc.bank[0],&doc.bank[1],&doc.bank[2]},doc.project.clock,doc.project.rate);write(folder/"preview.wav",pcm);exportRegisters(folder/"test.ayregs",doc.bank,group(),doc.project.clock,doc.project.rate);
         auto sdk=folder/"sdk";if(!fs::exists(sdk))exportBankData(sdk,doc.bank,doc.project);
-        Effect saved;std::vector<float> samples(SampleRate/2);for(size_t i=0;i<samples.size();i++)samples[i]=float(.4*std::sin(2*Pi*440*i/SampleRate));saved.sourceAudio=pcmWave(samples);saved.sourcePath="synthetic-tone.wav";
-        {WorkshopDialog workshop(doc.project.clock,doc.project.rate,this,&saved);workshop.setAttribute(Qt::WA_DontShowOnScreen);workshop.show();QApplication::processEvents();workshop.grab().save(pathString(folder/"workshop.png"));workshop.reject();}
+        Effect saved;std::vector<float> samples(SampleRate/2);for(size_t i=0;i<samples.size();i++)samples[i]=float(.4*std::sin(2*Pi*440*i/SampleRate));saved.sourceAudio=pcmWave(samples);saved.sourcePath="synthetic-tone.wav";saved.recipe="3 12 75 8 -2 0 40 65";
+        {WorkshopDialog workshop(doc.project.clock,doc.project.rate,this,&saved);require(workshop.recipe()==saved.recipe,"Windows workshop settings did not round-trip");workshop.setAttribute(Qt::WA_DontShowOnScreen);workshop.show();QApplication::processEvents();workshop.grab().save(pathString(folder/"workshop.png"));workshop.reject();}
         doc.dirty=false;setAttribute(Qt::WA_DontShowOnScreen);show();QApplication::processEvents();grab().save(pathString(folder/"editor.png"));std::cout<<"PASS: native UI edits, undo/redo, Unicode project save/load, linked loops, WAV and register exports.\n";
     }
 };

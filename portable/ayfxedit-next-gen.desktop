@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=AYFXEDIT NEXT GEN
+Comment=AY sound-effect editor - native preview
+Exec=ayfxedit-next-gen %f
+Icon=ayfxedit-next-gen
+Terminal=false
+Categories=AudioVideo;Audio;AudioVideoEditing;

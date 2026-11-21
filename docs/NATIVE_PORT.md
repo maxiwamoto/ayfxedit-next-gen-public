@@ -10,8 +10,8 @@ Ubuntu 24.04:
     sudo apt install build-essential cmake qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev gstreamer1.0-plugins-good
 
 macOS:
-    brew install cmake qt
-    export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
+    brew install cmake qtbase qtmultimedia
+    export CMAKE_PREFIX_PATH="$(brew --prefix qtbase):$(brew --prefix qtmultimedia)"
 
 All platforms:
     cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release
@@ -24,7 +24,7 @@ Includes multichannel numeric frame editing, channel reassignment/removal, linke
 
 It is a native preview, not a claim of pixel-for-pixel Win32 interface parity. The native grid uses editable hexadecimal values and checkboxes, with Alt-drag parameter-bar drawing and per-channel headings. The curve dialog currently uses two endpoints rather than the Windows freehand curve editor. Batch AFX import/export, waveform selection zoom and AFX/AFB file drag/drop are supported. Some inherited guide topics describe Windows controls; platform menu shortcuts take precedence.
 
-The portable executable uses Qt's audio backend for playback and MP3 decoding. Installed codecs/backend availability can differ across Linux distributions. WAV conversion and AY rendering use the existing shared implementation. Select a local MP3/WAV of up to 64 MB and five minutes; convert a selection of up to 4096 frames. Projects retain the source excerpt and settings.
+The portable executable uses Qt's audio backend for playback and MP3 decoding. Installed codecs/backend availability can differ across Linux distributions. WAV conversion and AY rendering use the existing shared implementation. Select a local MP3/WAV of up to 64 MB and five minutes; convert a selection of up to 4096 frames. Projects retain the source excerpt and Windows-compatible settings.
 
 Linux DEB packages require Ubuntu 24.04-compatible Qt libraries. Install with apt so dependencies are resolved. The TGZ is not a self-contained AppImage. macOS builds include Qt frameworks in an application bundle and use ad-hoc signatures; they are not Apple-notarized releases. No security settings are changed by the build.
 

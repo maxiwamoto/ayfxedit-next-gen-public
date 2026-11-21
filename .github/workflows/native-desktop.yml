@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install qtbase qtmultimedia ffmpeg
-          echo "CMAKE_PREFIX_PATH=$(brew --prefix qtbase);$(brew --prefix qtmultimedia)" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qtbase):$(brew --prefix qtmultimedia)" >> "$GITHUB_ENV"
           echo "$(brew --prefix qtbase)/bin" >> "$GITHUB_PATH"
       - name: Build
         run: |
