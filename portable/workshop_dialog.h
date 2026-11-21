@@ -10,12 +10,13 @@ class WorkshopDialog : public QDialog {
     QCheckBox* normalize;
     QLabel *status;
     QWidget* graph;
-    QPushButton *convert,*apply,*original,*resultButton;
+    QPushButton *openAudio,*convert,*apply,*original,*resultButton;
     ayfx::ConvertOptions settings;
     ayfx::ConvertedWave result;
     ayfx::Bytes originalWave, resultWave;
     Playback playback;
     bool busy=false,valid=false;
+    double previewOffset=0;
     int clock,rate;
     void loadAudio();
     void setSource(ayfx::SourceWave wave,const QString& path);

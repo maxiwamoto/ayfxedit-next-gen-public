@@ -29,9 +29,9 @@ jobs:
       - name: macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install qt ffmpeg
-          echo "CMAKE_PREFIX_PATH=$(brew --prefix qt)" >> "$GITHUB_ENV"
-          echo "$(brew --prefix qt)/bin" >> "$GITHUB_PATH"
+          brew install qtbase qtmultimedia ffmpeg
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qtbase);$(brew --prefix qtmultimedia)" >> "$GITHUB_ENV"
+          echo "$(brew --prefix qtbase)/bin" >> "$GITHUB_PATH"
       - name: Build
         run: |
           cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release
@@ -40,6 +40,15 @@ jobs:
         run: |
           ulimit -s 32768
           ctest --test-dir build-portable --output-on-failure
+      - name: Native MP3 decoder checks
+        shell: bash
+        run: |
+          ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=0.5" -codec:a libmp3lame build-portable/test-tone.mp3
+          printf 'not an MP3' > build-portable/invalid.mp3
+          exe=build-portable/ayfxedit-next-gen
+          if [ "$RUNNER_OS" = macOS ]; then exe=build-portable/ayfxedit-next-gen.app/Contents/MacOS/ayfxedit-next-gen; fi
+          QT_QPA_PLATFORM=offscreen "$exe" --decode-test build-portable/test-tone.mp3
+          QT_QPA_PLATFORM=offscreen "$exe" --decode-reject build-portable/invalid.mp3
       - name: Package Linux
         if: runner.os == 'Linux'
         run: |
@@ -48,10 +57,9 @@ jobs:
       - name: Package macOS
         if: runner.os == 'macOS'
         run: |
-          macdeployqt build-portable/ayfxedit-next-gen.app -always-overwrite
-          cp CREDITS.md THIRD_PARTY_NOTICES.md docs/NATIVE_PORT.md build-portable/ayfxedit-next-gen.app/Contents/Resources/
-          codesign --force --deep --sign - build-portable/ayfxedit-next-gen.app
+          bash tools/package_macos.sh build-portable/ayfxedit-next-gen.app
           QT_QPA_PLATFORM=offscreen build-portable/ayfxedit-next-gen.app/Contents/MacOS/ayfxedit-next-gen --self-test build-portable/bundle-test
+          QT_QPA_PLATFORM=offscreen build-portable/ayfxedit-next-gen.app/Contents/MacOS/ayfxedit-next-gen --decode-test build-portable/test-tone.mp3
           ditto -c -k --sequesterRsrc --keepParent build-portable/ayfxedit-next-gen.app build-portable/ayfxedit-next-gen-${{ matrix.package }}.zip
       - name: Upload packages and checks
         uses: actions/upload-artifact@v4
@@ -61,6 +69,8 @@ jobs:
             build-portable/*.deb
             build-portable/*.tar.gz
             build-portable/*.zip
-            build-portable/self-test/editor.png
+            build-portable/self-test/*.png
+            build-portable/self-test/*.ayregs
+            build-portable/self-test/*.wav
             build-portable/Testing/Temporary/LastTest.log
           if-no-files-found: error

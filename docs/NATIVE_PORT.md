@@ -22,7 +22,7 @@ All platforms:
 
 Includes multichannel numeric frame editing, channel reassignment/removal, linked frame operations, undo/redo, loops, mute/solo, continuous AY preview, generators, two-point curves, pitch/vibrato, envelopes, metadata/search, minute autosaves, project save/load, WAV/MP3 conversion, capture extraction, exports, piano entry and the embedded offline guide.
 
-It is a native preview, not a claim of full Win32 interface parity. The native grid currently uses editable numbers and checkboxes rather than draggable parameter bars. The curve dialog uses two endpoints rather than the Windows freehand curve editor. Batch AFX import is available; the full batch-export dialog, waveform zoom and file drag/drop are not ported yet. Some inherited guide topics describe Windows controls; platform menu shortcuts take precedence.
+It is a native preview, not a claim of pixel-for-pixel Win32 interface parity. The native grid uses editable hexadecimal values and checkboxes, with Alt-drag parameter-bar drawing and per-channel headings. The curve dialog currently uses two endpoints rather than the Windows freehand curve editor. Batch AFX import/export, waveform selection zoom and AFX/AFB file drag/drop are supported. Some inherited guide topics describe Windows controls; platform menu shortcuts take precedence.
 
 The portable executable uses Qt's audio backend for playback and MP3 decoding. Installed codecs/backend availability can differ across Linux distributions. WAV conversion and AY rendering use the existing shared implementation. Select a local MP3/WAV of up to 64 MB and five minutes; convert a selection of up to 4096 frames. Projects retain the source excerpt and settings.
 

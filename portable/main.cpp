@@ -20,6 +20,7 @@ class FrameModel : public QAbstractTableModel {
 public:
     Document* doc;
     std::function<void()> beforeEdit,afterEdit;
+    bool gesture=false;
     explicit FrameModel(Document* d,QObject* parent):QAbstractTableModel(parent),doc(d){}
     int rowCount(const QModelIndex& ={}) const override {return MaxFrames;}
     int columnCount(const QModelIndex& ={}) const override {return 24;}
@@ -28,8 +29,8 @@ public:
     QVariant headerData(int section,Qt::Orientation orientation,int role) const override {
         if(role!=Qt::DisplayRole)return {};
         if(orientation==Qt::Vertical)return QString("%1").arg(section,4,16,QChar('0')).toUpper();
-        const char* names[]={"Tone on","Noise on","Tone","Noise","Volume","Envelope","Env period","Shape"};
-        return QString("%1 · %2").arg(QChar('A'+section/8)).arg(names[section%8]);
+        const char* names[]={"T","N","Tone","Noise","Vol","Env","Period","Shape"};
+        return QString("%1\n%2").arg(QChar('A'+section/8)).arg(names[section%8]);
     }
     QVariant data(const QModelIndex& i,int role) const override {
         if(!i.isValid())return {};auto t=track(i.column());if(t<0)return {};auto c=doc->bank[t].cells[i.row()];int field=i.column()%8;
@@ -60,10 +61,42 @@ public:
         if(!boolean&&field==7&&v.toString()=="-"){value=-1;ok=true;}
         int maximum=field==2?4095:field==3?31:field==6?65535:15;
         if(!ok||(!boolean&&(value<(field==7?-1:0)||value>maximum)))return false;
-        if(beforeEdit)beforeEdit();auto& c=doc->bank[track(i.column())].cells[i.row()];
+        if(beforeEdit&&!gesture)beforeEdit();auto& c=doc->bank[track(i.column())].cells[i.row()];
         switch(field){case 0:c.t=value;break;case 1:c.n=value;break;case 2:c.tone=value;break;case 3:c.noise=value;break;case 4:c.volume=value;c.envelope=false;break;case 5:c.envelope=value;break;case 6:c.envelopePeriod=value;break;case 7:c.shape=value;break;}
         emit dataChanged(index(i.row(),0),index(i.row(),23));if(afterEdit)afterEdit();return true;
     }
+};
+class ParameterDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+    void paint(QPainter* p,const QStyleOptionViewItem& opt,const QModelIndex& i)const override {
+        QStyledItemDelegate::paint(p,opt,i);
+        int field=i.column()%8;if(field<2||field>4)return;
+        bool ok=false;int value=i.data(Qt::DisplayRole).toString().toInt(&ok,16);if(!ok)return;
+        int maximum=field==2?4095:field==3?31:15;
+        p->fillRect(QRect(opt.rect.left()+2,opt.rect.bottom()-4,(opt.rect.width()-4)*value/maximum,3),QColor("#278b80"));
+    }
+};
+class FrameView : public QTableView {
+    bool drawing=false;
+    void drawAt(const QPoint& pos) {
+        auto i=indexAt(pos);if(!i.isValid())return;int field=i.column()%8;if(field<2||field>4)return;
+        auto m=static_cast<FrameModel*>(model());if(m->track(i.column())<0)return;
+        int max=field==2?4095:field==3?31:15;auto rect=visualRect(i);
+        int value=std::clamp(int(double(pos.x()-rect.left())/std::max(1,rect.width()-1)*max),0,max);
+        m->setData(i,QString::number(value,16),Qt::EditRole);
+    }
+protected:
+    void mousePressEvent(QMouseEvent* e)override {
+        if(e->button()==Qt::LeftButton&&(e->modifiers()&Qt::AltModifier)){
+            auto i=indexAt(e->position().toPoint());auto m=static_cast<FrameModel*>(model());
+            if(i.isValid()&&m->track(i.column())>=0&&i.column()%8>=2&&i.column()%8<=4){
+                setCurrentIndex(i);if(m->beforeEdit)m->beforeEdit();m->gesture=true;drawing=true;drawAt(e->position().toPoint());return;
+            }
+        }QTableView::mousePressEvent(e);
+    }
+    void mouseMoveEvent(QMouseEvent* e)override {if(drawing){drawAt(e->position().toPoint());return;}QTableView::mouseMoveEvent(e);}
+    void mouseReleaseEvent(QMouseEvent* e)override {if(drawing){drawing=false;static_cast<FrameModel*>(model())->gesture=false;return;}QTableView::mouseReleaseEvent(e);}
 };
 class Editor : public QMainWindow {
 public:
@@ -188,7 +221,7 @@ public:
         auto [first,last]=selection();remember();applyCurve(doc.bank[track()],first,last,lane.currentIndex(),{{0,a->value()},{1,b->value()}},smooth.isChecked());refresh();
     }
     void capture(){
-        auto p=QFileDialog::getOpenFileName(this,"Extract capture",{},"AY captures (*.psg *.vgm)");if(p.isEmpty())return;auto raw=read(filePath(p));auto cap=p.endsWith(".vgm",Qt::CaseInsensitive)?captureVGM(raw,doc.project.rate):capturePSG(raw,doc.project.rate);
+        auto p=QFileDialog::getOpenFileName(this,"Extract capture",{},"AY captures (*.psg *.vgm)");if(p.isEmpty())return;auto raw=read(filePath(p));auto cap=p.endsWith(".vgm",Qt::CaseInsensitive)?captureVGM(raw,doc.project.rate):capturePSG(raw,doc.project.rate);if(!p.endsWith(".vgm",Qt::CaseInsensitive))cap.clock=doc.project.clock;
         bool ok;int start=QInputDialog::getInt(this,"Capture range","First frame",0,0,std::max(0,int(cap.frames.size())-1),1,&ok);if(!ok)return;
         int count=QInputDialog::getInt(this,"Capture range","Number of frames",std::min(MaxFrames,int(cap.frames.size())-start),1,std::min(MaxFrames,int(cap.frames.size())-start),1,&ok);if(!ok)return;
         auto result=extractCapture(cap,start,start+count,7);auto bank=doc.bank;auto groups=doc.project.groups;int g=applyConverted(bank,groups,doc.group,result,QFileInfo(p).baseName().toUtf8().toStdString(),false);remember();doc.bank=std::move(bank);doc.project.groups=std::move(groups);doc.group=g;doc.project.clock=cap.clock;refresh();
@@ -219,9 +252,26 @@ public:
     }
     void autosave(){if(!doc.dirty||testing)return;try{QDir().mkpath(QFileInfo(recoveryFile).absolutePath());saveProjectBank(filePath(recoveryFile),doc.bank,doc.project);}catch(const std::exception& e){statusBar()->showMessage("Recovery snapshot failed: "+QString::fromUtf8(e.what()));}}
     void recover(){if(!QFileInfo::exists(recoveryFile)){QMessageBox::information(this,"Recovery","No recovery snapshot is available.");return;}if(discard())load(filePath(recoveryFile),true);}
+    void dragEnterEvent(QDragEnterEvent* event) override {
+        auto urls=event->mimeData()->urls();if(urls.size()==1&&urls[0].isLocalFile()){
+            auto ext=QFileInfo(urls[0].toLocalFile()).suffix().toLower();if(ext=="afx"||ext=="afb")event->acceptProposedAction();
+        }
+    }
+    void dropEvent(QDropEvent* event) override {
+        auto urls=event->mimeData()->urls();if(urls.size()!=1||!urls[0].isLocalFile())return;
+        safe([&]{if(discard()){load(filePath(urls[0].toLocalFile()));event->acceptProposedAction();}});
+    }
+    void batchExport() {
+        for(auto& effect:doc.bank)requireClassic(effect);
+        auto selected=QFileDialog::getSaveFileName(this,"Choose a NEW folder for classic AFX export","ayfx-classic");
+        if(selected.isEmpty())return;auto folder=filePath(selected);require(!fs::exists(folder),"Choose a new folder; existing files are not overwritten");
+        fs::create_directories(folder);
+        for(size_t i=0;i<doc.bank.size();i++)write(folder/(std::to_string(i)+".afx"),encode(doc.bank[i]));
+        statusBar()->showMessage(QString("Exported %1 classic tracks. Group metadata stays in the project.").arg(doc.bank.size()));
+    }
     void closeEvent(QCloseEvent* event) override {try{if(discard()){playback.stop();QFile::remove(recoveryFile);QFile::remove(recoveryFile+".ayfx-project");event->accept();}else event->ignore();}catch(const std::exception& e){showError(this,e);event->ignore();}}
     explicit Editor(bool test=false):testing(test){
-        setWindowTitle("AYFXEDIT NEXT GEN");resize(1560,860);
+        setAcceptDrops(true);setWindowTitle("AYFXEDIT NEXT GEN");resize(1560,860);
         auto central=new QWidget;setCentralWidget(central);auto layout=new QVBoxLayout(central);auto top=new QHBoxLayout;layout->addLayout(top);
         auto addButton=[&](const QString& label,std::function<void()> fn){auto b=new QPushButton(label);top->addWidget(b);connect(b,&QPushButton::clicked,this,[this,fn]{safe(fn);});};
         addButton("Open",[this]{if(!discard())return;auto p=QFileDialog::getOpenFileName(this,"Open",{},"AY banks/effects (*.afb *.afx)");if(!p.isEmpty())load(filePath(p));});addButton("Save",[this]{save();});addButton("Play all",[this]{play();});addButton("Solo",[this]{play(true);});addButton("Stop",[this]{playback.stop();});addButton("Channels / loop…",[this]{channelDialog();});
@@ -230,8 +280,8 @@ public:
         clock=new QComboBox;clock->addItem("MSX · 1.789773 MHz",1789773);clock->addItem("Spectrum · 1.7734 MHz",1773400);clock->addItem("2 MHz",2000000);rate=new QComboBox;rate->addItem("50 Hz",50);rate->addItem("60 Hz",60);preview=new QComboBox;preview->addItems({"Reference AY","Legacy (single channel)"});linked=new QCheckBox("Link frame edits");linked->setChecked(true);
         options->addWidget(clock);options->addWidget(rate);options->addWidget(preview);options->addWidget(linked);
         auto splitter=new QSplitter;layout->addWidget(splitter,1);auto sidebar=new QWidget;auto side=new QVBoxLayout(sidebar);side->setContentsMargins(0,0,0,0);search=new QLineEdit;search->setPlaceholderText("Search names and tags");library=new QListWidget;side->addWidget(search);side->addWidget(library);splitter->addWidget(sidebar);
-        grid=new QTableView;model=new FrameModel(&doc,this);grid->setModel(model);grid->setSelectionMode(QAbstractItemView::ExtendedSelection);grid->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));grid->verticalHeader()->setDefaultSectionSize(25);grid->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);int widths[]={36,36,58,46,48,36,64,46};for(int i=0;i<24;i++)grid->setColumnWidth(i,widths[i%8]);splitter->addWidget(grid);splitter->setStretchFactor(1,1);splitter->setSizes({250,1000});
-        model->beforeEdit=[this]{remember();};model->afterEdit=[this]{setWindowModified(true);statusBar()->showMessage("Edited — Ctrl/Cmd+S to save");};
+        grid=new FrameView;grid->setItemDelegate(new ParameterDelegate(grid));grid->setToolTip("Edit hexadecimal values or Alt-drag tone, noise and volume cells to draw parameter bars.");model=new FrameModel(&doc,this);grid->setModel(model);grid->setSelectionMode(QAbstractItemView::ExtendedSelection);grid->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));grid->verticalHeader()->setDefaultSectionSize(25);grid->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);int widths[]={36,36,58,46,48,36,64,46};for(int i=0;i<24;i++)grid->setColumnWidth(i,widths[i%8]);splitter->addWidget(grid);splitter->setStretchFactor(1,1);splitter->setSizes({250,1000});
+        model->beforeEdit=[this]{remember();};model->afterEdit=[this]{if(!windowTitle().endsWith(" *"))setWindowTitle(windowTitle()+" *");statusBar()->showMessage("Edited — Ctrl/Cmd+S to save");};
         connect(search,&QLineEdit::textChanged,this,[this]{if(!refreshing)refresh();});
         connect(library,&QListWidget::currentRowChanged,this,[this](int i){if(refreshing||i<0)return;playback.stop();doc.group=i;refresh();});
         connect(name,&QLineEdit::editingFinished,this,[this]{if(refreshing)return;safe([this]{auto value=name->text().toUtf8().toStdString();require(!value.empty()&&value.size()<=255,"Name must contain 1–255 UTF-8 bytes");if(value!=group().name){remember();group().name=value;refresh();}});});
@@ -240,7 +290,7 @@ public:
         auto file=menuBar()->addMenu("&File");action(file,"New",QKeySequence::New,[this]{if(discard()){doc=Document{};undoStack.clear();redoStack.clear();refresh();}});
         action(file,"Open…",QKeySequence::Open,[this]{if(!discard())return;auto p=QFileDialog::getOpenFileName(this,"Open bank",{},"AY banks/effects (*.afb *.afx)");if(!p.isEmpty())load(filePath(p));});
         action(file,"Save",QKeySequence::Save,[this]{save();});action(file,"Save as…",QKeySequence::SaveAs,[this]{save(true);});
-        action(file,"Import AFX files…",{},[this]{importEffects();});action(file,"WAV / MP3 workshop…",{},[this]{workshop();});
+        action(file,"Import AFX files…",{},[this]{importEffects();});action(file,"Batch export classic AFX…",{},[this]{batchExport();});action(file,"WAV / MP3 workshop…",{},[this]{workshop();});
         for(int kind=0;kind<5;kind++)action(file,QString("Export %1…").arg(QStringList{"WAV","CSV","VT2","AFX (active track)","AY registers"}[kind]),{},[this,kind]{exportFile(kind);});
         action(file,"Export game SDK…",{},[this]{auto p=QFileDialog::getSaveFileName(this,"Choose a NEW export folder name","ayfx-sdk");if(!p.isEmpty()){auto result=exportBankData(filePath(p),doc.bank,doc.project);statusBar()->showMessage(QString("Exported %1 effects, %2 bytes").arg(result.effects).arg(result.bytes));}});
         action(file,"Quit",QKeySequence::Quit,[this]{close();});
@@ -258,6 +308,7 @@ public:
         auto piano=new QHBoxLayout;layout->addLayout(piano);auto octave=numberBox(4,0,8);piano->addWidget(new QLabel("Octave"));piano->addWidget(octave);
         QStringList notes{"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};for(int n=0;n<12;n++){auto key=new QPushButton(notes[n]);piano->addWidget(key);connect(key,&QPushButton::clicked,this,[this,octave,n]{remember();auto& cell=doc.bank[track()].cells[row()];double hz=440*std::exp2((octave->value()*12+n-57)/12.);cell.tone=std::clamp(int(doc.project.clock/(16*hz)),1,4095);cell.volume=15;cell.t=true;refresh();});}
         recoveryFile=QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)+"/Recovery/session.afb";connect(&recovery,&QTimer::timeout,this,[this]{autosave();});if(!testing)recovery.start(60000);refresh();
+        if(!testing&&QFileInfo::exists(recoveryFile))QTimer::singleShot(0,this,[this]{if(QMessageBox::question(this,"Recovery available","Open the recovery snapshot from the previous session?")==QMessageBox::Yes)safe([this]{recover();});});
     }
     void selfTest(const fs::path& folder){
         fs::create_directories(folder);
@@ -268,12 +319,26 @@ public:
         auto before=doc.bank[0].cells[4].tone;grid->setCurrentIndex(model->index(4,2));grid->clearSelection();editRows(true);require(group().loopStart==5&&group().loopEnd==21,"Linked insert lost loop timing");require(doc.bank[0].cells[5].tone==before,"Linked insert lost frame");history(false);
         auto pcm=renderChannels({&doc.bank[0],&doc.bank[1],&doc.bank[2]},doc.project.clock,doc.project.rate);write(folder/"preview.wav",pcm);exportRegisters(folder/"test.ayregs",doc.bank,group(),doc.project.clock,doc.project.rate);
         auto sdk=folder/"sdk";if(!fs::exists(sdk))exportBankData(sdk,doc.bank,doc.project);
+        Effect saved;std::vector<float> samples(SampleRate/2);for(size_t i=0;i<samples.size();i++)samples[i]=float(.4*std::sin(2*Pi*440*i/SampleRate));saved.sourceAudio=pcmWave(samples);saved.sourcePath="synthetic-tone.wav";
+        {WorkshopDialog workshop(doc.project.clock,doc.project.rate,this,&saved);workshop.setAttribute(Qt::WA_DontShowOnScreen);workshop.show();QApplication::processEvents();workshop.grab().save(pathString(folder/"workshop.png"));workshop.reject();}
         doc.dirty=false;setAttribute(Qt::WA_DontShowOnScreen);show();QApplication::processEvents();grab().save(pathString(folder/"editor.png"));std::cout<<"PASS: native UI edits, undo/redo, Unicode project save/load, linked loops, WAV and register exports.\n";
     }
 };
 int main(int argc,char** argv){
     QApplication app(argc,argv);QCoreApplication::setOrganizationName("Max Iwamoto");QCoreApplication::setApplicationName("AYFXEDIT NEXT GEN");QApplication::setStyle("Fusion");
-    try{bool test=argc>1&&QString::fromLocal8Bit(argv[1])=="--self-test";Editor editor(test);if(test){require(argc>2,"Self-test output folder required");editor.selfTest(filePath(QString::fromLocal8Bit(argv[2])));return 0;}
+    try{
+        if(argc>2&&(QString::fromLocal8Bit(argv[1])=="--decode-test"||QString::fromLocal8Bit(argv[1])=="--decode-reject")){
+            bool reject=QString::fromLocal8Bit(argv[1])=="--decode-reject";int result=1;
+            new AudioImport(QString::fromLocal8Bit(argv[2]),[&](SourceWave wave,QString error){
+                try{if(reject){require(!error.isEmpty(),"Malformed MP3 was accepted");}
+                    else{require(error.isEmpty(),error.toUtf8().constData());require(wave.duration()>.4&&wave.duration()<.7,"Decoded MP3 duration changed");double energy=0;for(auto v:wave.mono)energy+=v*v;require(energy>1,"Decoded MP3 is silent");
+                        ConvertOptions options;options.start=.1;options.end=.3;options.channels=1;options.rate=60;auto converted=convertWave(wave,options);require(converted.frames==12,"Decoded MP3 conversion timing changed");int period=converted.tracks[0].cells[4].tone;require(period>230&&period<280,"Decoded MP3 conversion pitch changed");}
+                    result=0;std::cout<<"PASS: Qt MP3 "<<(reject?"rejection":"decode, pitch and timing")<<"\n";
+                }catch(const std::exception& e){std::cerr<<e.what()<<"\n";}
+                app.exit(result);
+            },&app);return app.exec();
+        }
+        bool test=argc>1&&QString::fromLocal8Bit(argv[1])=="--self-test";Editor editor(test);if(test){require(argc>2,"Self-test output folder required");editor.selfTest(filePath(QString::fromLocal8Bit(argv[2])));return 0;}
         if(argc>1)editor.load(filePath(QString::fromLocal8Bit(argv[1])));editor.show();return app.exec();
     }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }
