@@ -2,10 +2,17 @@
 #include "register_export.h"
 #include "sound_tools.h"
 #include "project.h"
+#ifdef _WIN32
 #include "audio_decode.h"
+#endif
 #include <iostream>
 using namespace ayfx;namespace fs=std::filesystem;
-int wmain(int argc,wchar_t** argv){try{
+#ifdef _WIN32
+int wmain(int argc,wchar_t** argv)
+#else
+int main(int argc,char** argv)
+#endif
+{try{
  int fxCount=0,bankCount=0,total=0;
  for(auto& entry:fs::recursive_directory_iterator("native/build/fixtures")){auto p=entry.path();if(p.extension()==".afx"){
   auto b=read(p);size_t used=0;auto e=decode(b,0,b.size(),&used);require(used==b.size(),"Unexpected AFX trailer");auto encoded=encode(e);require(encoded==b,"AFX bytes changed");++fxCount;
@@ -104,6 +111,7 @@ int wmain(int argc,wchar_t** argv){try{
  applyConverted(destination,destGroups,added,toneResult,"Replacement",true);require(destGroups[added].tracks[1]>=0&&length(destination[destGroups[added].tracks[1]])==0&&destination[destGroups[added].tracks[0]].name=="Custom sound A","Replace did not preserve names/silence spare channels");
  require(u32(seekWave(sourceBytes,.1),40)==uint32_t((source.mono.size()-4410)*2),"A/B seeking changed position");
  std::cout<<"PASS: WAV workshop pitch, trim, timing, fades, normalization, multiple tones, noise bandwidth, brightness, silence, cancellation, application, and A/B seeking.\n";
+#ifdef _WIN32
  // Exercise Windows MP3 decoding with an optional real local fixture.
  write("native/build/test-invalid.mp3",Bytes{'b','a','d'});
  bool rejectedMP3=false;try{decodeAudioFile(L"native/build/test-invalid.mp3");}catch(...){rejectedMP3=true;}require(rejectedMP3,"Malformed MP3 accepted");
@@ -115,6 +123,7 @@ int wmain(int argc,wchar_t** argv){try{
   auto unicodeAudio=decodeAudioFile(unicodePath);require(unicodeAudio.mono==mp3.mono,"Unicode/uppercase MP3 import changed audio");fs::remove(unicodePath);
   std::cout<<"PASS: MP3 decode, non-silent samples, conversion, Unicode paths and uppercase extension ("<<mp3.rate<<" Hz, "<<mp3.channels<<" channels, "<<mp3.duration()<<" s).\n";
  }
+#endif
  {
  Bank fixture(6);std::vector<EffectGroup> gs={ {"One",{{0,-1,-1}}},{"Two",{{1,2,-1}}},{"Three",{{3,4,5}}} };
  for(int t=0;t<6;t++)for(int f=0;f<12;f++)fixture[t].cells[f]={100+t*40+f,3,15-f/3,true,t==5};

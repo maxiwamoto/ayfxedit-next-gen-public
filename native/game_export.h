@@ -30,7 +30,7 @@ inline PackedEffect packEffect(const Bank& bank,const EffectGroup& g){
 inline std::string effectSymbol(const std::string& name,size_t index){
  std::string result="AYFX_"+std::to_string(index)+"_";for(unsigned char c:name)result+=c>='a'&&c<='z'?char(c-32):((c>='A'&&c<='Z')||(c>='0'&&c<='9'))?char(c):'_';if(result.size()>64)result.resize(64);return result;
 }
-inline std::string asmHex(unsigned n,int width=2){char s[24];sprintf_s(s,"%0*Xh",width,n);return s;}
+inline std::string asmHex(unsigned n,int width=2){char s[24];std::snprintf(s,sizeof(s),"%0*Xh",width,n);return s;}
 inline void writeText(const std::filesystem::path& p,const std::string& s){write(p,Bytes(s.begin(),s.end()));}
 struct ExportSummary {size_t bytes=0,frames=0;int effects=0;};
 inline ExportSummary exportBankData(const std::filesystem::path& folder,const Bank& bank,const Project& project){
@@ -56,7 +56,7 @@ inline ExportSummary exportBankData(const std::filesystem::path& folder,const Ba
   report+=(owners[i]==i?"":"[shared with "+std::to_string(owners[i])+"] ")+std::to_string(i)+" "+project.groups[i].name+": "+std::to_string(effect.data.size())+" bytes, "+std::to_string(effect.frames)+" frames, channels "+std::to_string(effect.mask&7)+"\n";
  }
  c+="\nstatic const unsigned char ayfx_bank[] = {\n";
- for(size_t p=0;p<all.size();p++){if(p%16==0)c+=" ";char value[10];sprintf_s(value,"0x%02X,",all[p]);c+=value;if(p%16==15)c+="\n";}
+ for(size_t p=0;p<all.size();p++){if(p%16==0)c+=" ";char value[10];std::snprintf(value,sizeof(value),"0x%02X,",all[p]);c+=value;if(p%16==15)c+="\n";}
  c+="\n};\n#define AYFX_EFFECT_COUNT "+std::to_string(packed.size())+"\n#endif\n";
  summary.bytes=all.size();summary.effects=int(packed.size());report+="Identical-effect sharing saved "+std::to_string(saved)+" bytes.\n";report+="Total: "+std::to_string(all.size())+" bytes; "+std::to_string(summary.frames)+" authored frames.\nClock: "+std::to_string(project.clock)+" Hz; tick rate: "+std::to_string(project.rate)+" Hz.\n";
  std::filesystem::create_directories(folder);

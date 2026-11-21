@@ -2,6 +2,7 @@
 #include "core.h"
 #include <sstream>
 #include <iomanip>
+#include "platform_files.h"
 namespace ayfx {
 inline void validateGroups(const Bank& bank,const std::vector<EffectGroup>& groups){
  require(!groups.empty()&&groups.size()<=bank.size(),"Invalid project group count");std::vector<bool> seen(bank.size());
@@ -48,14 +49,14 @@ inline Project decodeProject(const Bytes& data,Bank& bank,const Bytes& bankBytes
 inline std::filesystem::path projectPath(const std::filesystem::path& bank){auto p=bank;p+=L".ayfx-project";return p;}
 inline void saveProjectBank(const std::filesystem::path& path,const Bank& bank,const Project& project){
  auto bytes=encodeBank(bank,true),metadata=encodeProject(bank,bytes,project);auto side=projectPath(path);
- auto suffix=L".tmp."+std::to_wstring(GetCurrentProcessId())+L"."+std::to_wstring(GetTickCount64());auto tmp=path;tmp+=suffix;auto tmpSide=side;tmpSide+=suffix;
+ auto suffix=temporarySaveSuffix();auto tmp=path;tmp+=suffix;auto tmpSide=side;tmpSide+=suffix;
  require(!std::filesystem::exists(tmp)&&!std::filesystem::exists(tmpSide),"Temporary save file already exists");
  bool existed=std::filesystem::exists(path),replaced=false;Bytes previous;if(existed)previous=read(path);
  try{write(tmp,bytes);write(tmpSide,metadata);
-  require(MoveFileExW(tmp.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0,"Cannot replace AFB file; it may be read-only");replaced=true;
-  require(MoveFileExW(tmpSide.c_str(),side.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0,"Cannot replace companion project file");
+  require(replaceFile(tmp,path),"Cannot replace AFB file; it may be read-only");replaced=true;
+  require(replaceFile(tmpSide,side),"Cannot replace companion project file");
  }catch(...){std::error_code error;
-  if(replaced){if(existed){write(tmp,previous);require(MoveFileExW(tmp.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0,"Project save failed and AFB rollback failed; previous AFB is in the temporary file");}else std::filesystem::remove(path,error);}
+  if(replaced){if(existed){write(tmp,previous);require(replaceFile(tmp,path),"Project save failed and AFB rollback failed; previous AFB is in the temporary file");}else std::filesystem::remove(path,error);}
   std::filesystem::remove(tmp,error);std::filesystem::remove(tmpSide,error);throw;
  }
 }

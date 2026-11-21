@@ -1,6 +1,8 @@
 #pragma once
 // The guide is compiled into the application; no browser or internet is required.
+#ifdef _WIN32
 #include <richedit.h>
+#endif
 struct HelpTopic {const wchar_t* section;const wchar_t* title;const wchar_t* body;int command;};
 enum {GuideStart=-1,GuideGrid=-2,GuideKeys=-3,GuideChannels=-4,GuideTiming=-5,GuideCredits=-6};
 const HelpTopic helpTopics[]={

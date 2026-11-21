@@ -13,3 +13,7 @@ The upstream notice does not identify a Creative Commons version. This fork reta
 Copyright (C) 2026 Max Iwamoto applies to the NEXT GEN interface and additions, not to the underlying authors' work. See CREDITS.md for source-level provenance, upstream links and additional acknowledgements.
 
 Optional test/build dependencies are installed separately under their own terms. They and their licences are not embedded into the Windows editor. Windows APIs are supplied by the operating system.
+
+## Native Linux/macOS preview
+
+The optional Qt front end dynamically links Qt Core, GUI, Widgets, Multimedia and Concurrent, Copyright The Qt Company Ltd. and other contributors. These Qt modules are available under LGPLv3 (or a commercial licence); their terms apply to Qt, not as a replacement licence for this project's inherited code. Qt source and licence texts: https://code.qt.io/cgit/qt/ and https://www.qt.io/licensing/open-source-lgpl-obligations . The native source and build instructions allow rebuilding against a compatible replacement Qt library. Linux packages use system Qt packages; macOS bundles retain Qt framework resources. Qt Multimedia may use separately licensed system or bundled codec components; retain their notices when packaging. This preview does not modify Qt.

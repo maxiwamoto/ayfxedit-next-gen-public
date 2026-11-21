@@ -3,7 +3,7 @@
 namespace ayfx {
 struct RegisterExport {Bytes data;std::string metadata;};
 inline std::string jsonString(const std::string& value){
- std::string out="\"";for(unsigned char c:value){if(c=='"'||c=='\\'){out+='\\';out+=char(c);}else if(c<32){char escape[7];sprintf_s(escape,"\\u%04x",unsigned(c));out+=escape;}else out+=char(c);}return out+'"';
+ std::string out="\"";for(unsigned char c:value){if(c=='"'||c=='\\'){out+='\\';out+=char(c);}else if(c<32){char escape[7];std::snprintf(escape,sizeof(escape),"\\u%04x",unsigned(c));out+=escape;}else out+=char(c);}return out+'"';
 }
 inline RegisterExport encodeRegisters(const Bank& bank,const EffectGroup& group,int clock,int rate,bool psg11){
  require(std::any_of(group.tracks.begin(),group.tracks.end(),[](int t){return t>=0;}),"Choose at least one channel");

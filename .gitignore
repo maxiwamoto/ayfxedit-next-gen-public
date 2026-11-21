@@ -7,3 +7,6 @@ __pycache__/
 *.pdb
 *.ilk
 *.log
+
+/build-portable/
+/aqtinstall.log

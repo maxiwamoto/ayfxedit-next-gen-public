@@ -1,8 +1,13 @@
 // Native port of AYFXEdit's effect/bank model and renderer.
 // Original source: Shiru; improved fork: Threetwosevensixseven.
 #pragma once
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+#ifdef _WIN32
 #include <windows.h>
+#endif
+#include <cwctype>
 #include <algorithm>
 #include <array>
 #include <cmath>

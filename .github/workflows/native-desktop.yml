@@ -1,0 +1,66 @@
+name: Native desktop builds
+on:
+  push:
+    branches: [codex/native-desktop]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            package: linux-x86_64
+          - os: macos-15
+            package: macos-arm64
+          - os: macos-15-intel
+            package: macos-x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev ninja-build dpkg-dev gstreamer1.0-plugins-good fonts-dejavu-core ffmpeg
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install qt ffmpeg
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qt)" >> "$GITHUB_ENV"
+          echo "$(brew --prefix qt)/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: |
+          cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-portable --parallel 3
+      - name: Test
+        run: |
+          ulimit -s 32768
+          ctest --test-dir build-portable --output-on-failure
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: |
+          cd build-portable
+          cpack
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        run: |
+          macdeployqt build-portable/ayfxedit-next-gen.app -always-overwrite
+          cp CREDITS.md THIRD_PARTY_NOTICES.md docs/NATIVE_PORT.md build-portable/ayfxedit-next-gen.app/Contents/Resources/
+          codesign --force --deep --sign - build-portable/ayfxedit-next-gen.app
+          QT_QPA_PLATFORM=offscreen build-portable/ayfxedit-next-gen.app/Contents/MacOS/ayfxedit-next-gen --self-test build-portable/bundle-test
+          ditto -c -k --sequesterRsrc --keepParent build-portable/ayfxedit-next-gen.app build-portable/ayfxedit-next-gen-${{ matrix.package }}.zip
+      - name: Upload packages and checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: ayfxedit-next-gen-${{ matrix.package }}
+          path: |
+            build-portable/*.deb
+            build-portable/*.tar.gz
+            build-portable/*.zip
+            build-portable/self-test/editor.png
+            build-portable/Testing/Temporary/LastTest.log
+          if-no-files-found: error
