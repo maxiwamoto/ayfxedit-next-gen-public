@@ -9,6 +9,7 @@ namespace fs=std::filesystem;
 struct Document {Bank bank;Project project;};
 static std::unique_ptr<AYStream> stream;
 static int remaining=0;
+static double realNumber(val v,const char* key,double lo,double hi){double x=v[key].as<double>();require(std::isfinite(x)&&x>=lo&&x<=hi,"Setting outside allowed range");return x;}
 static int number(val v,const char* key,int low,int high){double d=v[key].as<double>();require(std::isfinite(d)&&d==std::floor(d)&&d>=low&&d<=high,"Invalid numeric setting");return int(d);}
 static Bytes bytes(val v,size_t max=64*1024*1024){require(v["length"].as<size_t>()<=max,"File is too large");return emscripten::convertJSArrayToNumberVector<uint8_t>(v);}
 static val arrayBytes(const Bytes& b){return val::global("Uint8Array").new_(val(emscripten::typed_memory_view(b.size(),b.data())));}
@@ -32,24 +33,48 @@ static val document(const Bank& bank,const Project& project){
 }
 static val run(std::string op,val a){
  try{val result=val::object(),out=val::object();
- if(op=="decode"){
+ if(op=="decodeWave"){
+  auto w=decodeSourceWave(bytes(a["bytes"]));out.set("samples",val::global("Float32Array").new_(val(emscripten::typed_memory_view(w.mono.size(),w.mono.data()))));out.set("rate",w.rate);out.set("duration",w.duration());
+ }else if(op=="decode"){
   auto raw=bytes(a["bytes"]);auto ext=a["extension"].as<std::string>();Bank bank;if(ext=="afx"){bank={decode(raw,0,raw.size())};bank[0].name="Imported effect";}else bank=decodeBank(raw);Project p{groupBank(bank),1789773,50};if(!a["side"].isNull()&&!a["side"].isUndefined())p=decodeProject(bytes(a["side"],256*1024*1024),bank,raw);out=document(bank,p);
  }else if(op=="generate"){
-  GeneratorOptions o;o.preset=number(a,"preset",0,5);o.frames=number(a,"frames",1,4096);o.channels=number(a,"channels",1,3);o.clock=number(a,"clock",1000000,4000000);o.startHz=a["startHz"].as<double>();o.endHz=a["endHz"].as<double>();o.noise=a["noise"].as<double>();auto r=generateSound(o);EffectGroup g;g.name=a["name"].as<std::string>();for(int c=0;c<o.channels;c++){g.tracks[c]=c;r.tracks[c].name=g.name+" "+char('A'+c);}out=document(r.tracks,Project{{g},o.clock,number(a,"rate",50,60)});
+  GeneratorOptions o;o.preset=number(a,"preset",0,5);o.frames=number(a,"frames",1,4096);o.channels=number(a,"channels",1,3);o.clock=number(a,"clock",1000000,4000000);o.startHz=a["startHz"].as<double>();o.endHz=a["endHz"].as<double>();o.noise=a["noise"].as<double>();if(!a["seed"].isUndefined())o.seed=number(a,"seed",0,1000000);auto r=generateSound(o);EffectGroup g;g.name=a["name"].as<std::string>();for(int c=0;c<o.channels;c++){g.tracks[c]=c;r.tracks[c].name=g.name+" "+char('A'+c);}out=document(r.tracks,Project{{g},o.clock,number(a,"rate",50,60)});
  }else if(op=="convert"){
   SourceWave w;w.rate=number(a,"sampleRate",4000,192000);w.channels=1;w.bits=32;require(a["samples"]["length"].as<size_t>()<=size_t(w.rate)*300,"Audio exceeds five minutes");w.mono=emscripten::convertJSArrayToNumberVector<float>(a["samples"]);for(float v:w.mono)require(std::isfinite(v)&&std::abs(v)<=2,"Invalid audio samples");ConvertOptions o;o.start=a["start"].as<double>();o.end=a["end"].as<double>();o.channels=number(a,"channels",1,3);o.clock=number(a,"clock",1000000,4000000);o.rate=number(a,"rate",50,60);o.attackMs=a["attack"].as<double>();o.decayMs=a["decay"].as<double>();o.pitch=a["pitch"].as<double>();o.brightness=a["brightness"].as<double>();o.normalize=a["normalize"].as<bool>();o.toneSensitivity=a["tone"].as<double>();o.noiseSensitivity=a["noise"].as<double>();auto r=convertWave(w,o);EffectGroup g;g.name=a["name"].as<std::string>();for(int c=0;c<o.channels;c++){g.tracks[c]=c;r.tracks[c].name=g.name+" "+char('A'+c);}r.tracks[0].sourceAudio=pcmWave(selectedSamples(w,o.start,o.end,SampleRate));r.tracks[0].sourcePath=g.name;std::ostringstream recipe;recipe<<o.channels<<' '<<o.attackMs<<' '<<o.decayMs<<' '<<o.brightness<<' '<<o.pitch<<' '<<o.normalize<<' '<<o.toneSensitivity<<' '<<o.noiseSensitivity;r.tracks[0].recipe=recipe.str();out=document(r.tracks,Project{{g},o.clock,o.rate});
- }else if(op=="capture"){
-  auto raw=bytes(a["bytes"]);int rate=number(a,"rate",50,60);auto cap=a["extension"].as<std::string>()=="vgm"?captureVGM(raw,rate):capturePSG(raw,rate);if(a["extension"].as<std::string>()!="vgm")cap.clock=number(a,"clock",1000000,4000000);require(cap.frames.size()<=4096,"Capture exceeds 4096 frames; trim it in the desktop editor first");auto r=extractCapture(cap,0,int(cap.frames.size()),7);out=document(r.tracks,Project{{EffectGroup{"Capture",{{0,1,2}},-1,-1}},cap.clock,rate});
+ }else if(op=="spectrum"){
+  SourceWave w;w.rate=number(a,"sampleRate",4000,192000);w.channels=1;w.bits=32;require(a["samples"]["length"].as<size_t>()<=size_t(w.rate)*300,"Audio exceeds five minutes");w.mono=emscripten::convertJSArrayToNumberVector<float>(a["samples"]);for(float v:w.mono)require(std::isfinite(v)&&std::abs(v)<=2,"Invalid audio samples");
+  double start=realNumber(a,"start",0,w.duration()),end=realNumber(a,"end",0,w.duration());require(end>start,"Select a non-empty analysis range");auto samples=selectedSamples(w,start,end,AnalysisRate);std::vector<double> power(256*64);double peak=1e-12;
+  for(int x=0;x<256;x++){auto bins=spectrum(samples,int((x+.5)*samples.size()/256));for(int y=0;y<64;y++){double hz=80*std::pow(125.,double(63-y)/63);int bin=std::clamp(int(hz*FFTSize/AnalysisRate),1,FFTSize/2);double v=bins[bin];power[y*256+x]=v;peak=std::max(peak,v);}}
+  Bytes rgba(power.size()*4);for(size_t i=0;i<power.size();i++){double v=std::clamp((10*std::log10(power[i]/peak+1e-12)+65)/65,0.,1.);rgba[i*4]=uint8_t(20+230*v);rgba[i*4+1]=uint8_t(20+200*v*v);rgba[i*4+2]=uint8_t(45+70*(1-v));rgba[i*4+3]=255;}out=arrayBytes(rgba);
+ }else if(op=="psgClassic"){
+  auto e=importPSG(bytes(a["bytes"]),number(a,"channel",-1,2));e.name=a["name"].as<std::string>();out=document({e},Project{{EffectGroup{e.name,{{0,-1,-1}}}},number(a,"clock",1000000,4000000),number(a,"rate",50,60)});
+ }else if(op=="capture"||op=="captureInfo"){
+  auto raw=bytes(a["bytes"]);int rate=number(a,"rate",50,60),clock=number(a,"clock",1000000,4000000);auto cap=a["extension"].as<std::string>()=="vgm"?captureVGM(raw,rate):capturePSG(raw,rate);if(a["extension"].as<std::string>()!="vgm")cap.clock=clock;require(!cap.frames.empty(),"Capture has no frames");
+  if(op=="captureInfo"){out.set("frames",cap.frames.size());out.set("clock",cap.clock);}
+  else{int first=a["first"].isUndefined()?0:number(a,"first",0,int(cap.frames.size())-1),end=a["end"].isUndefined()?int(cap.frames.size()):number(a,"end",1,int(cap.frames.size())),mask=a["mask"].isUndefined()?7:number(a,"mask",1,7);auto r=extractCapture(cap,first,end,mask);EffectGroup g;g.name=a["name"].isUndefined()?"Capture":a["name"].as<std::string>();
+   for(size_t ch=0;ch<r.tracks.size();ch++){g.tracks[ch]=int(ch);for(auto& c:r.tracks[ch].cells){c.tone=std::clamp(int(std::lround(c.tone*double(clock)/cap.clock)),0,4095);c.envelopePeriod=std::clamp(int(std::lround(c.envelopePeriod*double(clock)/cap.clock)),0,65535);}}out=document(r.tracks,Project{{g},clock,rate});}
  }else if(op=="streamNext"){
   require(bool(stream),"No active playback");int n=number(a,"count",1,44100);if(remaining>=0)n=std::min(n,remaining);std::vector<float> samples(n);for(auto& v:samples)v=stream->next()/32768.f;if(remaining>=0)remaining-=n;out.set("samples",val::global("Float32Array").new_(val(emscripten::typed_memory_view(samples.size(),samples.data()))));out.set("ended",remaining==0);
  }else if(op=="stop"){stream.reset();}
  else{
   auto d=readDocument(a["doc"]);int index=number(a,"group",0,int(d.project.groups.size())-1);auto& g=d.project.groups[index];std::array<const Effect*,3> channels{};int len=1,count=0;for(int c=0;c<3;c++)if(g.tracks[c]>=0){channels[c]=&d.bank[g.tracks[c]];count++;len=std::max(len,length(*channels[c]));}if(g.loopStart>=0)len=g.loopEnd;
   if(op=="save"){auto bank=encodeBank(d.bank,true);out.set("bank",arrayBytes(bank));out.set("project",arrayBytes(encodeProject(d.bank,bank,d.project)));}
+  else if(op=="batchWav"){out=arrayBytes(renderChannels(channels,d.project.clock,d.project.rate));}
   else if(op=="render"){out=arrayBytes(renderChannels(channels,d.project.clock,d.project.rate,0,count==1?21845:10000,number(a,"mask",0,7),len,3));}
   else if(op=="streamStart"){int from=number(a,"from",0,4095);if(from>=len)from=0;stream=std::make_unique<AYStream>(registerFrames(channels,len),d.project.clock,d.project.rate,number(a,"mask",0,7),count==1?21845:10000,from,g.loopStart,g.loopEnd);remaining=g.loopStart>=0?-1:(len-from+3)*SampleRate/d.project.rate;out.set("frames",len);out.set("from",from);}
-  else if(op=="registers"){auto r=encodeRegisters(d.bank,g,d.project.clock,d.project.rate,false);out.set("data",arrayBytes(r.data));out.set("metadata",r.metadata);}
+  else if(op=="registers"){auto r=encodeRegisters(d.bank,g,d.project.clock,d.project.rate,!a["psg11"].isUndefined()&&a["psg11"].as<bool>());out.set("data",arrayBytes(r.data));out.set("metadata",r.metadata);}
   else if(op=="classic"){int ch=number(a,"channel",0,2);require(g.tracks[ch]>=0,"Channel is empty");auto& e=d.bank[g.tracks[ch]];requireClassic(e);out=arrayBytes(encode(e));}
+  else if(op=="csv"||op=="vt2"){int ch=number(a,"channel",0,2);require(g.tracks[ch]>=0,"Channel is empty");auto& e=d.bank[g.tracks[ch]];requireClassic(e);out=arrayBytes(op=="csv"?csv(e):vt2(e,d.project.clock));}
+  else if(op=="bare"){for(auto& e:d.bank)requireClassic(e);out=arrayBytes(encodeBank(d.bank,false));}
+  else if(op=="legacy"){int ch=0;while(!channels[ch])ch++;require(count==1&&g.loopStart<0&&!hasEnvelope(*channels[ch]),"Legacy preview is only available for a single channel without loops or envelopes");auto raw=render(*channels[ch],d.project.clock,d.project.rate,number(a,"from",0,4095),PreviewModel::Legacy);if(!(number(a,"mask",0,7)&(1<<ch)))std::fill(raw.begin()+44,raw.end(),0);out=arrayBytes(raw);}
+  else if(op=="assign"){std::array<int,3> tracks{};for(int c=0;c<3;c++){double t=a["tracks"][c].as<double>();require(std::isfinite(t)&&std::floor(t)==t&&t>=-2&&t<int(d.bank.size()),"Invalid channel assignment");tracks[c]=int(t);}int next=assignChannels(d.bank,d.project.groups,index,a["name"].as<std::string>(),tracks,number(a,"loopStart",-1,4095),number(a,"loopEnd",-1,4096));d.project.groups[next].priority=number(a,"priority",0,255);out.set("doc",document(d.bank,d.project));out.set("group",next);}
+  else if(op=="applyConverted"){auto source=readDocument(a["source"]);require(source.project.groups.size()==1,"Choose one converted effect");ConvertedWave r;for(int t:source.project.groups[0].tracks)if(t>=0)r.tracks.push_back(source.bank[t]);int next=applyConverted(d.bank,d.project.groups,index,r,source.project.groups[0].name,a["replace"].as<bool>());out.set("doc",document(d.bank,d.project));out.set("group",next);}
+  else if(op=="curve"||op=="envelope"){
+   int ch=number(a,"channel",0,2);require(g.tracks[ch]>=0,"Channel is empty");auto& e=d.bank[g.tracks[ch]];int first=number(a,"first",0,4095),last=number(a,"last",first,4095);
+   if(op=="curve"){std::vector<CurvePoint> points;auto p=a["points"];require(p["length"].as<int>()>0&&p["length"].as<int>()<=256,"Use 1–256 curve points");for(int i=0;i<p["length"].as<int>();i++)points.push_back({realNumber(p[i],"x",0,1),realNumber(p[i],"y",0,1)});applyCurve(e,first,last,number(a,"lane",0,2),points,a["smooth"].as<bool>());}
+   else{int period=number(a,"period",0,65535),shape=number(a,"shape",0,15),trigger=number(a,"trigger",0,3);double pitch=realNumber(a,"transpose",-24,24),depth=realNumber(a,"depth",0,24),cycles=realNumber(a,"cycles",0,64);bool enabled=a["enabled"].as<bool>();for(int f=first;f<=last;f++){auto& c=e.cells[f];c.envelope=enabled;c.envelopePeriod=period;if(trigger)c.shape=trigger==2||(trigger==1&&f==first)?shape:-1;c.tone=std::clamp(int(std::lround(c.tone/std::exp2(pitch/12))),0,4095);}if(depth>0)modulate(e,first,last,depth,cycles);registerFrames(channels);}
+   out=document(d.bank,d.project);
+  }
   else if(op=="sdk"){static unsigned id=0;auto folder=fs::path("/export-"+std::to_string(++id));exportBankData(folder,d.bank,d.project);for(auto& f:fs::directory_iterator(folder))if(f.is_regular_file())out.set(f.path().filename().string(),arrayBytes(read(f.path())));fs::remove_all(folder);}
   else if(op!="validate")throw std::runtime_error("Unknown engine operation");
  }

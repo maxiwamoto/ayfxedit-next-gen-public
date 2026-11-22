@@ -1,1 +1,11 @@
-{"name":"ayfxedit-web","private":true,"type":"module","scripts":{"test":"cd .. && node web/tests.mjs && node web/client-tests.mjs"},"dependencies":{"fflate":"0.8.3"}}
+{
+  "name": "ayfxedit-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "cd .. && node web/tests.mjs && node web/parity-tests.mjs && node web/client-tests.mjs"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
+  }
+}

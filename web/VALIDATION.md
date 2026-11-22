@@ -15,10 +15,18 @@ Browser checks cover project import, all export controls, correctly named downlo
 - Errors such as unsupported AFX envelope export are visible inside their modal dialog.
 - The old short help paragraph was replaced with 21 searchable topics, tables, walkthroughs, shortcuts, troubleshooting, credits and a feature-parity section. Help uses its own dialog and does not discard an open workshop. Workshop F1 selects its topic automatically.
 
-## Remaining release limits
+## Feature-parity expansion
 
-This is not a full standalone replacement yet. Missing browser tools include multipoint/smooth curves, selected-frame transpose/vibrato, spectrogram, position-preserving A/B comparison, saved-source reopening/replacement, batch operations, existing-track reassignment and CSV/VT2/PSG11 export. Recovery uses one local browser slot instead of native session files.
+Implemented the inventory in PARITY.md, including numeric editing, advanced native tools, batch workflows, complete exports, legacy audio, capture extraction, workshop analysis/source revision and per-session recovery. The standalone source/release binaries were not modified.
 
-Real Safari/Firefox, Linux/macOS audio-device and subjective listening checks remain. The embedded test browser cannot capture downloads; successful normal-browser downloading was confirmed by the user and the actual supplied ZIP was tested. No production website upload or public release was performed.
+The expanded independent native audit passed on the user's supplied ZIP plus six clock/rate fixtures: 192 WAV renders, 24 continuous stream cases, 147 SDK files and 24 full-timeline batch WAVs. CSV, VT2, PSG11 data/metadata, legacy WAV, seeded generators, smooth multipoint curves and transpose/vibrato project outputs also match the native verifier byte-for-byte where applicable. Latest report: native/build/web-audit-1795371786338/report.json (ignored build artifact).
 
-Sources for the comparison: native/help_content.h, native/main.cpp, portable/main.cpp, portable/workshop_dialog.cpp, and the current web implementation.
+Focused tests cover deterministic/different seeds, duplicate-assignment rejection, displaced-track preservation, replacement names/source data/spare-channel silence, envelope retrigger policies, rejection of lossy exports, 5100-frame capture slicing, channel masks, VGM target-clock retuning, spectrum peak/range validation and last-track removal rules. Audio scheduling tests also check A/B offset preservation and reset on Stop.
+
+Local browser checks cover curve preview/apply/undo, pitch edits, invalid duplicate assignment, hexadecimal grid, capture frames 4500–4510 with mask A+C, spectrogram, conversion and A/B controls, replace/reopen source with restored recipe, batch import failure with no partial changes, successful AFX+WAV batch and one-step undo, and complete library ZIP preparation. Additional final checks cover legacy playback, native PCM WAV conversion, contextual workshop Help, every new export button, separate tab recovery snapshots, hexadecimal keystroke editing with undo, and editor/grid/curve layouts at 390 × 844 without page overflow. No browser console errors were reported. Existing project/codec and scheduler regressions still pass.
+
+Deployment revisions the whole module/worker/WASM dependency graph to prevent cached old code mixing with a newly deployed engine. PCM WAV decoding now uses the native decoder at its original sample rate instead of browser resampling before conversion.
+
+## Remaining release checks
+
+Real Safari/Firefox, Linux/macOS audio-device and subjective listening checks remain. Browser MP3 decoding can differ from platform decoders. The embedded test browser cannot capture downloads; normal-browser project ZIP download/reopening was previously confirmed by the user and their exact file was audited. Browser equivalents for filesystem operations are documented in PARITY.md. No production website upload or public release was performed.

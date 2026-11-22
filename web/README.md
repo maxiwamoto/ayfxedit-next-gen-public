@@ -4,14 +4,17 @@ A standalone browser interface around the existing C++ AY engine. Desktop source
 
 ## Included
 
-- Three coloured channel timelines with volume/tone/noise drawing, frame inspection, piano notes, mute/solo and hardware envelopes.
-- Linked selection editing, insert/repeat/copy/paste/clear/delete, undo/redo, channel management, loops, tags, favourites and priorities.
-- Native sound presets and WAV/MP3 conversion in a cancellable worker, with original/AY preview and retained source excerpt/settings.
-- AFX, AFB plus companion project, project ZIP, PSG and uncompressed single-AY VGM input.
-- Editable project ZIP, classic AFX, WAV, AY register stream and native Z80/SDCC game SDK exports.
-- Local recovery, keyboard shortcuts, a searchable 21-topic guide with contextual workshop help, and responsive layout.
+The web interface now covers the functional command set of the Windows editor and native Linux/macOS preview. The command-by-command mapping and browser equivalents are in [PARITY.md](PARITY.md).
 
-This is not full desktop parity. Spectrograms, batch export, CSV/VT2 export, several advanced transformations and some library management controls are not included yet. Capture import is limited to 4096 frames. Audio input is mono/stereo, at most five minutes/64 MB; choose a short excerpt for conversion. ZIP input has a 256 MB expanded size limit. Native project formats retain their existing limits.
+- Three-channel timelines and a hexadecimal numeric frame grid, shared-register diagnostics, linear/log tone display, linked frame edits, cut/copy/paste, undo/redo and full-range piano entry.
+- Multipoint linear/smooth curves with preview; transpose, vibrato, hardware envelopes and retrigger policies; seeded generator preview.
+- Existing-track reassignment, group/track management, favourites filtering, tags, loops and priorities.
+- Workshop with native PCM WAV decoding, MP3 decoding through Web Audio, waveform/spectrogram, zoom, position-preserving A/B listening, source reopening and channel replacement.
+- Atomic batch AFX/audio import, ranged/channel-selective PSG/VGM extraction and classic PSG active-track replacement.
+- Editable project ZIP, bare AFB, AFX, WAV, CSV, VT2, AY14, PSG11, batch WAV/project, batch AFX and native game SDK exports.
+- Reference/legacy audition, separate browser-session recovery snapshots, desktop editing shortcuts and 26 searchable Help topics.
+
+Browser equivalents use downloads/ZIPs instead of silently writing native files/folders, and IndexedDB instead of application recovery directories. This is a local testing preview, not a claim of certification across every browser/audio device. MP3 decoding is browser-dependent. Audio/capture input is limited to five minutes/64 MB; selected effects remain limited to 4096 frames. ZIP input has a 256 MB expanded-size limit.
 
 ## Build and run
 
@@ -43,7 +46,7 @@ Use modern browsers with WebAssembly, module workers, Web Audio and IndexedDB. A
 
 ## Layout and architecture
 
-index.html/studio.css/app.js: browser interface. model.js: editing transactions. client.js/worker.js: Web Audio scheduling and worker boundary. bridge.cpp: validation and native engine adapter. The actual synthesis, conversion, codecs and SDK generator reuse native headers. The player streams continuous AY state across chunks/loops rather than repeating disconnected WAV renders.
+index.html/studio.css/app.js: main interface. advanced.js/workshop.js: native-feature controls and audio workflows. model.js: editing transactions. client.js/worker.js: Web Audio scheduling and worker boundary. bridge.cpp: validation and native engine adapter. The actual synthesis, conversion, codecs and SDK generator reuse native headers. The player streams continuous AY state across chunks/loops rather than repeating disconnected WAV renders.
 
 The website deployment copies only runtime files using deploy.py. dist/ is generated and ignored by Git. vendor/ contains pinned fflate plus required notices. See CREDITS.md and THIRD_PARTY_NOTICES.md; this port does not assert a new blanket licence for inherited code.
 
@@ -60,4 +63,4 @@ node web/audit.mjs "C:/path/to/downloaded-project.ayfx.zip"
 
 On Windows the audit defaults to native/build/web-audit-native/Release/web-native-verify.exe. Set WEB_NATIVE_VERIFY to the executable path for another generator/platform. The ZIP argument is optional; the synthetic clock/rate matrix always runs. Audit output uses a new ignored native/build/web-audit-* folder. It does not modify the source ZIP. Native files, streams and SDK output are compared to the browser's real WASM adapter. This is numerical verification; it does not record or listen to an OS audio device.
 
-The updated testing/upload status is documented in [VALIDATION.md](VALIDATION.md).
+The updated testing/upload status is documented in [VALIDATION.md](VALIDATION.md). Deployment adds one content-derived revision to the complete module/worker/WASM graph so browsers do not mix engine versions.

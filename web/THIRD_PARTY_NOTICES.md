@@ -20,4 +20,4 @@ The optional Qt front end dynamically links Qt Core, GUI, Widgets, Multimedia an
 
 ## Web Studio
 
-The browser build contains fflate (Arjun Barrett, MIT) and Emscripten runtime components (MIT/UIUC). Complete notices are in vendor/fflate-LICENSE.txt and vendor/emscripten-LICENSE.txt. Qt is not used by the web build. The inherited editor attribution above remains applicable.
+The browser build contains fflate (Arjun Barrett, MIT) and Emscripten runtime components (MIT/UIUC). Their complete notices are retained in vendor/fflate-LICENSE.txt and vendor/emscripten-LICENSE.txt. Qt is not used by the web build. The inherited editor attribution above remains applicable.
