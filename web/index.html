@@ -15,7 +15,8 @@
 </div>
 <footer class="statusbar"><span id="status" role="status">Loading shared AY engine…</span><span id="autosave">Local recovery ready</span></footer>
 <input id="file-input" type="file" accept=".afx,.afb,.ayfx-project,.zip,.psg,.vgm" multiple hidden><input id="audio-input" type="file" accept="audio/wav,audio/mpeg,.wav,.mp3" hidden>
-<dialog id="dialog"><header><div><p class="overline" id="dialog-eyebrow">AYFXEDIT WEB STUDIO</p><h2 id="dialog-title"></h2></div><button id="dialog-close" class="icon" aria-label="Close dialog">×</button></header><div id="dialog-body"></div></dialog>
+<dialog id="dialog"><header><div><p class="overline" id="dialog-eyebrow">AYFXEDIT WEB STUDIO</p><h2 id="dialog-title"></h2></div><button id="dialog-close" class="icon" aria-label="Close dialog">×</button></header><p id="dialog-error" class="dialog-error" role="alert" hidden></p><div id="dialog-body"></div></dialog>
 <div id="drop-overlay" hidden>Drop an AFX, bank, project ZIP or audio file</div>
+<div class="download-strip"><a id="download-again" hidden></a></div>
 <noscript>This editor needs JavaScript and WebAssembly enabled.</noscript><script type="module" src="app.js"></script>
 </body></html>
