@@ -10,3 +10,6 @@ __pycache__/
 
 /build-portable/
 /aqtinstall.log
+
+/web/node_modules/
+/web/dist/

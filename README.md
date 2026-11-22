@@ -8,6 +8,10 @@ Native Windows AY sound-effect editor for **MSX and ZX Spectrum**, maintained by
 
 The release includes the executable, documentation, credits and SHA-256 checksums. Source is available here and as a matching release ZIP. Press **F1** for the built-in guide.
 
+## Web Studio preview
+
+A new browser interface shares the native AY engine, with three visual channel lanes, frame inspection, audio conversion, project recovery and game exports. It is a testing preview with a cleaner responsive layout; desktop-only workflows are not all included yet. [Build, run and validation notes](web/README.md).
+
 ## Screenshots
 
 Captured from the Windows build using synthetic demo effects and audio. Click an image to view it at full size.

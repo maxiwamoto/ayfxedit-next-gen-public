@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import createEngine from './dist/ayfx-engine.mjs';
+import * as M from './model.js';
+import {zipSync,unzipSync} from './vendor/fflate.js';
+const engine=await createEngine();
+const call=(op,args)=>{const result=engine.run(op,args);if(!result.ok)throw Error(result.error);return result.data;};
+const generator={name:'Browser test',preset:0,frames:24,channels:3,clock:1789773,rate:60,startHz:1200,endHz:100,noise:.5};
+let d=call('generate',generator);assert.equal(d.tracks.length,3);M.setLoop(d,0,4,20);d.groups[0].name='Native café 音声';d.tracks[0].cells[2][0]=0xabc;
+const saved=call('save',{doc:d,group:0});const loaded=call('decode',{bytes:saved.bank,side:saved.project,extension:'afb'});
+assert.equal(loaded.groups[0].name,d.groups[0].name);assert.deepEqual(call('registers',{doc:d,group:0}),call('registers',{doc:loaded,group:0}));
+const zipped=zipSync({'test.afb':saved.bank,'test.afb.ayfx-project':saved.project});const files=unzipSync(zipped);assert.deepEqual(files['test.afb'],saved.bank);
+const original=M.clone(d);M.editRows(d,0,0,4,4,'insert',true);assert.equal(d.groups[0].loopStart,5);assert.equal(d.groups[0].loopEnd,21);assert.deepEqual(d.tracks[1].cells[5],original.tracks[1].cells[4]);M.editRows(d,0,0,4,4,'delete',true);assert.equal(d.groups[0].loopStart,4);assert.deepEqual(d.tracks[0].cells,original.tracks[0].cells);
+let copy=M.editRows(d,0,0,0,2,'copy',true);M.editRows(d,0,0,8,10,'paste',true,copy);assert.deepEqual(d.tracks[2].cells[8],copy[2][0]);
+const copyIndex=M.append(d,call('generate',{...generator,channels:1,name:'Extra'}));M.addChannel(d,copyIndex,2);M.removeChannel(d,copyIndex,0);assert.equal(d.groups[copyIndex].tracks[0],-1);call('validate',{doc:d,group:copyIndex});M.removeGroup(d,copyIndex);call('validate',{doc:d,group:0});
+const full=M.empty();M.setCell(full,0,0,4095,[100,0,15,1,0,0,1,-1]);assert.throws(()=>M.editRows(full,0,0,0,0,'insert',true),/discard/);
+assert.throws(()=>M.setLoop(d,0,12,5),/after/);const invalid=M.clone(d);invalid.tracks[0].cells[0][0]=5000;assert.throws(()=>call('save',{doc:invalid,group:0}),/range/);assert.throws(()=>call('decode',{bytes:new Uint8Array([255]),side:null,extension:'afx'}));
+const envelope=M.clone(original);envelope.tracks[0].cells[0][5]=1;envelope.tracks[0].cells[0][7]=10;assert.throws(()=>call('classic',{doc:envelope,group:0,channel:0}),/envelope/);
+const samples=Float32Array.from({length:22050},(_,i)=>.4*Math.sin(2*Math.PI*440*i/44100));const converted=call('convert',{samples,sampleRate:44100,start:.1,end:.3,channels:1,clock:1789773,rate:60,name:'Tone',normalize:true,pitch:0,attack:0,decay:0,brightness:0,tone:50,noise:50});assert.equal(M.duration(converted,0),12);assert.ok(converted.tracks[0].cells[4][0]>230&&converted.tracks[0].cells[4][0]<280);assert.ok(converted.tracks[0].sourceAudio.length>1000);
+call('streamStart',{doc:original,group:0,mask:7,from:0});const chunks=[];for(let i=0;i<6;i++){const c=call('streamNext',{count:11025});assert.equal(c.ended,false);assert.ok(c.samples.every(Number.isFinite));chunks.push(...c.samples);}assert.ok(chunks.some(v=>Math.abs(v)>.001));call('stop',{});
+const sdk=call('sdk',{doc:original,group:0});assert.ok(sdk['effects.bin'].length);assert.ok(sdk['ayfx_player.asm']||Object.keys(sdk).some(k=>k.endsWith('.asm')));
+const nativeFolder=path.resolve('build-portable/self-test');
+if(fs.existsSync(nativeFolder)){
+ const bankName=fs.readdirSync(nativeFolder).find(n=>n.endsWith('.afb'));const native=call('decode',{bytes:new Uint8Array(fs.readFileSync(path.join(nativeFolder,bankName))),side:new Uint8Array(fs.readFileSync(path.join(nativeFolder,bankName+'.ayfx-project'))),extension:'afb'});
+ const registers=call('registers',{doc:native,group:0}).data;assert.deepEqual(Buffer.from(registers),fs.readFileSync(path.join(nativeFolder,'test.ayregs')));
+ native.groups[0].loopStart=native.groups[0].loopEnd=-1;const wav=call('render',{doc:native,group:0,mask:7});assert.deepEqual(Buffer.from(wav),fs.readFileSync(path.join(nativeFolder,'preview.wav')));
+ console.log('PASS: WASM register data and WAV are byte-identical to native desktop fixtures. SHA256:',crypto.createHash('sha256').update(wav).digest('hex'));
+}
+console.log('PASS: web project/ZIP round-trip, Unicode, linked loops, insertion bounds, channel operations, rejection checks, conversion, continuous playback and SDK export.');
