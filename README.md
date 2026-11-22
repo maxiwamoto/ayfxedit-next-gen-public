@@ -10,7 +10,9 @@ The release includes the executable, documentation, credits and SHA-256 checksum
 
 ## Web Studio preview
 
-A new browser interface shares the native AY engine, with three visual channel lanes, frame inspection, audio conversion, project recovery and game exports. It is a testing preview with a cleaner responsive layout; desktop-only workflows are not all included yet. [Build, run and validation notes](web/README.md).
+Web Studio shares the native AY engine and now includes three-channel timelines, hexadecimal frame editing, curves, pitch/envelope tools, WAV/MP3 conversion with spectrogram and A/B preview, batch import/export, project recovery, game SDK exports and 26 searchable Help topics. Project files remain compatible with the desktop editors.
+
+[Web source and build instructions](web/README.md) · [Feature mapping](web/PARITY.md) · [Regression results](web/VALIDATION.md). The tested browser version remains a preview: Safari/Firefox and Linux/macOS audio-device listening checks are still pending. The website upload is prepared separately; publishing this source does not deploy maxiwamoto.me.
 
 ## Screenshots
 

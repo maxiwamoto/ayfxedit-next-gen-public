@@ -25,7 +25,7 @@ From the repository root:
 ```text
 npm ci --prefix web
 python web/build.py
-node web/tests.mjs
+npm test --prefix web
 python web/deploy.py C:/xampp/htdocs/max_iwamoto_me/ayfxedit-web
 ```
 
@@ -38,7 +38,7 @@ Use modern browsers with WebAssembly, module workers, Web Audio and IndexedDB. A
 - Emscripten build succeeds. Node WASM tests cover project/ZIP round trips, Unicode, linked loops and insertion bounds, channel operations, invalid data/envelope rejection, conversion, continuous playback and SDK export.
 - Test fixture WAV and AY register stream are byte-identical to the native desktop fixture (WAV SHA-256 69a818725ad998216ad3952a4fb0474e509dd4587303229cb9c1fc81e42ce4af).
 - Local Chromium browser checks: startup, play/stop controls, period editing/undo, desktop AFB+sidecar import, WAV conversion/AY preview/add effect, local recovery after reload, and responsive layout at 390 x 844 (no horizontal page overflow).
-- The user downloaded My sounds.ayfx.zip in a normal browser and supplied that exact file. It reopened in Web Studio with all 6 groups, 14 tracks and 86,922 source-audio bytes. Native and WebAssembly save/reopen preserve bank and companion bytes. Embedded-browser download capture still times out, so download success is supported by the user-confirmed normal-browser file, not that automation.
+- The user downloaded My sounds.ayfx.zip in a normal browser and supplied that exact file. It reopened in Web Studio with all 6 groups, 14 tracks and 86,922 source-audio bytes. Native and WebAssembly save/reopen preserve bank and companion bytes. The later desktop Chrome regression pass also downloaded and reopened projects directly and compared the downloaded batch archives with native output.
 - Expanded native comparison: 192 WAV outputs, 24 persistent stream cases, 147 SDK files, plus AFX/register/metadata checks match byte-for-byte across MSX/Spectrum/2 MHz clocks, 50/60 Hz, mute masks, loops and envelopes.
 - Browser checks cover every export control, playback start/automatic stop, project ZIP import, searchable help and F1 from a workshop field. Help closes back to the intact workshop; conversion then completes. Unsupported AFX envelope exports now show their error inside the dialog.
 - Audio scheduler unit checks cover continuous chunk scheduling, automatic stop, cancellation and underrun reporting.
