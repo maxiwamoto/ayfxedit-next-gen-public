@@ -27,6 +27,30 @@ Local browser checks cover curve preview/apply/undo, pitch edits, invalid duplic
 
 Deployment revisions the whole module/worker/WASM dependency graph to prevent cached old code mixing with a newly deployed engine. PCM WAV decoding now uses the native decoder at its original sample rate instead of browser resampling before conversion.
 
+## Full browser regression pass — 2026-11-22
+
+Desktop Chrome was used for actual file downloads as well as UI tests. Nothing was published. Runtime revision: `2d58b821d4b2`.
+
+- Opened the user's original ZIP, saved it under a QA filename, reopened that downloaded ZIP and compared both contained files byte-for-byte with the original. All 6 groups / 14 tracks and 86,922 bytes of retained source audio survive.
+- Imported a valid AFX followed by a malformed AFX: the error is visible and the bank stays at 6 groups. Cancelled a mixed AFX / 60-second WAV batch with no partial changes. A successful AFX / stereo 48 kHz WAV batch produces 8 groups; Undo restores 6 and Redo restores 8.
+- Changed the new effect to a 10–100 frame loop with priority 211, saved, reloaded and reopened the actual download. All settings survived, along with 18 tracks and 351,566 source-audio bytes. Continuous loop playback remained active beyond one pass and stopped on command.
+- Downloaded the full library WAV ZIP and AFX ZIP. CRCs pass. All 6 WAV files, the bundled editable project and all 14 AFX files match the independent native verifier exactly.
+- Downloaded individual WAV, AFX, CSV, VT2, AY14 and PSG11 exports plus the game SDK. Their bytes match the native verifier, including all 21 SDK files. The bare AFB download was generated; its codec is covered by engine regressions.
+- Reopened retained WAV source, rendered its spectrogram, reconverted it and switched Original / AY previews. Loaded a 188.21-second MP3 and converted a two-second excerpt to 100 frames. Cancelled a longer conversion and successfully retried a one-second excerpt. Stop and automatic completion return playback indicators to idle.
+- Corrected curve positions with two decimal places now validate and Apply successfully; Undo restores the original values. Browser console errors/warnings: none in the final pass.
+
+The final independent native audit uses the newly edited/downloaded project and six clock/rate fixtures: **208 WAVs, 26 streaming cases, 147 SDK files and 26 batch WAVs** pass. Report: `native/build/web-audit-1795373171110/report.json`. The original user project was also audited at `native/build/web-audit-1795372630424/report.json`. These are ignored local artifacts.
+
+Fixes from this pass:
+
+- Curve position inputs now accept the same two-decimal precision produced by drawing points.
+- Closing a worker rejects calls even at the startup/await boundary, preventing an indefinitely pending operation. Four cancellation cases are covered by `worker-tests.mjs`.
+- Save completion cannot clear recovery for a different opened project or newer edits. Recovery-cleanup failure no longer turns a prepared download into an apparent save failure. `project-io-tests.mjs` executes the real save handler against deferred operations.
+- Batch import stops prior playback and locks the channel count during processing.
+- Original / AY preview buttons reset when audio ends naturally.
+
+`npm test --prefix web` passes all six suites. Standalone synthesis/conversion code and release binaries are unchanged.
+
 ## Remaining release checks
 
-Real Safari/Firefox, Linux/macOS audio-device and subjective listening checks remain. Browser MP3 decoding can differ from platform decoders. The embedded test browser cannot capture downloads; normal-browser project ZIP download/reopening was previously confirmed by the user and their exact file was audited. Browser equivalents for filesystem operations are documented in PARITY.md. No production website upload or public release was performed.
+Real Safari/Firefox, Linux/macOS audio-device and subjective listening checks remain. Browser MP3 decoding can differ from platform decoders. Desktop Chrome downloads, reopening and downloaded-file native comparisons are now verified directly; the earlier embedded-browser download limitation does not apply to this pass. Browser equivalents for filesystem operations are documented in PARITY.md. No production website upload or public release was performed.

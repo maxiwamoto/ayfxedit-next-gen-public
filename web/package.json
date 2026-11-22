@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "cd .. && node web/tests.mjs && node web/parity-tests.mjs && node web/client-tests.mjs"
+    "test": "cd .. && node web/tests.mjs && node web/parity-tests.mjs && node web/client-tests.mjs && node web/worker-tests.mjs && node web/project-io-tests.mjs"
   },
   "dependencies": {
     "fflate": "0.8.3"

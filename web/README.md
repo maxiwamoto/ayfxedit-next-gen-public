@@ -64,3 +64,5 @@ node web/audit.mjs "C:/path/to/downloaded-project.ayfx.zip"
 On Windows the audit defaults to native/build/web-audit-native/Release/web-native-verify.exe. Set WEB_NATIVE_VERIFY to the executable path for another generator/platform. The ZIP argument is optional; the synthetic clock/rate matrix always runs. Audit output uses a new ignored native/build/web-audit-* folder. It does not modify the source ZIP. Native files, streams and SDK output are compared to the browser's real WASM adapter. This is numerical verification; it does not record or listen to an OS audio device.
 
 The updated testing/upload status is documented in [VALIDATION.md](VALIDATION.md). Deployment adds one content-derived revision to the complete module/worker/WASM graph so browsers do not mix engine versions.
+
+Latest regression pass: real Chrome project downloads/reopening and batch ZIP contents verified against native output. Edited-project matrix: 208 WAVs, 26 streams and 147 SDK files. Run `npm test --prefix web` for all six suites, including worker cancellation and asynchronous save regressions. See VALIDATION.md for workflow evidence and remaining platform checks.
